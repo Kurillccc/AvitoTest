@@ -4,7 +4,8 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://username:password@localhost/dbname'  # Заменить на свои данные
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:newpassword@localhost:5432/kurillccc'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config["JWT_SECRET_KEY"] = "your_jwt_secret_key"  # Токен будет шифроваться этим ключом
 
@@ -62,5 +63,7 @@ def favicon():
     return '', 204  # Пустой ответ, чтобы не было ошибки
 
 if __name__ == '__main__':
-    db.create_all()
+    with app.app_context():
+        db.create_all()  # Создание таблиц в базе данных
     app.run(debug=True)
+
