@@ -84,3 +84,12 @@ def test_register_empty_fields(client):
     response = client.post('/register', json={})
     assert response.status_code == 400
     assert b'Username and password are required' in response.data
+
+def test_register_long_username(client):
+    # Передаем username длиной 101 символ
+    response = client.post('/register', json={
+        'username': 'a' * 101,
+        'password': 'testpassword'
+    })
+    assert response.status_code == 400
+    assert b'Username is too long' in response.data
