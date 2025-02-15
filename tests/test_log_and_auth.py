@@ -1,6 +1,6 @@
 import pytest
 from run import app, db
-from app.models import User, Transaction, Merch
+from app.models import User
 
 # Фикстура для инициализации тестового клиента
 @pytest.fixture
