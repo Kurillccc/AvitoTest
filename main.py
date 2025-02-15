@@ -34,6 +34,33 @@ class Transaction(db.Model):
     def __repr__(self):
         return f'<Transaction from {self.sender_id} to {self.receiver_id}, Amount: {self.amount}>'
 
+class Merch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+
+    def __repr__(self):
+        return f'<Merch {self.name}, Price: {self.price}>'
+
+def seed_merch():
+    merch_items = [
+        {"name": "t-shirt", "price": 80},
+        {"name": "cup", "price": 20},
+        {"name": "book", "price": 50},
+        {"name": "pen", "price": 10},
+        {"name": "powerbank", "price": 200},
+        {"name": "hoody", "price": 300},
+        {"name": "umbrella", "price": 200},
+        {"name": "socks", "price": 10},
+        {"name": "wallet", "price": 50},
+        {"name": "pink-hoody", "price": 500}
+    ]
+
+    for item in merch_items:
+        if not Merch.query.filter_by(name=item["name"]).first():
+            db.session.add(Merch(name=item["name"], price=item["price"]))
+
+    db.session.commit()
 
 @app.route('/')
 def home():
@@ -139,6 +166,43 @@ def wallet():
         "received": received,
         "sent": sent
     }), 200
+
+# Показывает товары в магазине
+@app.route('/store', methods=['GET'])
+def store():
+    merch_list = Merch.query.all()
+    return jsonify([{"name": m.name, "price": m.price} for m in merch_list])
+
+# Покупка товаров
+@app.route('/buy', methods=['POST'])
+@jwt_required()
+def buy():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    item_name = request.json.get('item', None)
+    if not item_name:
+        return jsonify({"msg": "Item name is required"}), 400
+
+    item = Merch.query.filter_by(name=item_name).first()
+    if not item:
+        return jsonify({"msg": "Item not found"}), 404
+
+    if user.balance < item.price:
+        return jsonify({"msg": "Not enough coins"}), 400
+
+    # Списываем монеты
+    user.balance -= item.price
+
+    # Записываем покупку
+    transaction = Transaction(sender_id=None, receiver_id=user.id, amount=item.price)
+    db.session.add(transaction)
+    db.session.commit()
+
+    return jsonify({"msg": f"Successfully bought {item.name}", "remaining_balance": user.balance}), 200
 
 # Исключаем ошибку в браузере
 @app.route('/favicon.ico')
