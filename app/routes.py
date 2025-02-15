@@ -1,73 +1,16 @@
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from app.extensions import db
+from app.models import User, Transaction, Merch
 
-app = Flask(__name__)
+bp = Blueprint('main', __name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:newpassword@localhost:5432/kurillccc'
-
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config["JWT_SECRET_KEY"] = "your_jwt_secret_key"  # Токен будет шифроваться этим ключом
-
-db = SQLAlchemy(app)
-jwt = JWTManager(app)
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-    balance = db.Column(db.Integer, default=1000)
-
-    def __repr__(self):
-        return f'<User {self.username}>'
-
-class Transaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    amount = db.Column(db.Integer, nullable=False)
-    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
-
-    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_transactions')
-    receiver = db.relationship('User', foreign_keys=[receiver_id], backref='received_transactions')
-
-    def __repr__(self):
-        return f'<Transaction from {self.sender_id} to {self.receiver_id}, Amount: {self.amount}>'
-
-class Merch(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    price = db.Column(db.Integer, nullable=False)
-
-    def __repr__(self):
-        return f'<Merch {self.name}, Price: {self.price}>'
-
-def seed_merch():
-    merch_items = [
-        {"name": "t-shirt", "price": 80},
-        {"name": "cup", "price": 20},
-        {"name": "book", "price": 50},
-        {"name": "pen", "price": 10},
-        {"name": "powerbank", "price": 200},
-        {"name": "hoody", "price": 300},
-        {"name": "umbrella", "price": 200},
-        {"name": "socks", "price": 10},
-        {"name": "wallet", "price": 50},
-        {"name": "pink-hoody", "price": 500}
-    ]
-
-    for item in merch_items:
-        if not Merch.query.filter_by(name=item["name"]).first():
-            db.session.add(Merch(name=item["name"], price=item["price"]))
-
-    db.session.commit()
-
-@app.route('/')
+@bp.route('/')
 def home():
     return "Welcome to the Avito Shop API!"
 
 # Регистрация
-@app.route('/register', methods=['POST'])
+@bp.route('/register', methods=['POST'])
 def register():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
@@ -84,7 +27,7 @@ def register():
     return jsonify({"msg": "User created successfully"}), 201
 
 # Логин
-@app.route('/login', methods=['POST'])
+@bp.route('/login', methods=['POST'])
 def login():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
@@ -97,14 +40,14 @@ def login():
     return jsonify(access_token=access_token)
 
 # Проверка токена
-@app.route('/protected', methods=['GET'])
+@bp.route('/protected', methods=['GET'])
 @jwt_required()
 def protected():
     current_user = get_jwt_identity()
     return jsonify(logged_in_as=current_user), 200
 
 # Передача монет
-@app.route('/transfer', methods=['POST'])
+@bp.route('/transfer', methods=['POST'])
 @jwt_required()
 def transfer():
     current_user = get_jwt_identity()
@@ -141,7 +84,7 @@ def transfer():
     return jsonify({"msg": "Transfer successful", "new_balance": sender.balance}), 200
 
 # Показать транзакции
-@app.route('/wallet', methods=['GET'])
+@bp.route('/wallet', methods=['GET'])
 @jwt_required()
 def wallet():
     current_user = get_jwt_identity()
@@ -168,13 +111,13 @@ def wallet():
     }), 200
 
 # Показывает товары в магазине
-@app.route('/store', methods=['GET'])
+@bp.route('/store', methods=['GET'])
 def store():
     merch_list = Merch.query.all()
     return jsonify([{"name": m.name, "price": m.price} for m in merch_list])
 
 # Покупка товаров
-@app.route('/buy', methods=['POST'])
+@bp.route('/buy', methods=['POST'])
 @jwt_required()
 def buy():
     current_user = get_jwt_identity()
@@ -205,12 +148,6 @@ def buy():
     return jsonify({"msg": f"Successfully bought {item.name}", "remaining_balance": user.balance}), 200
 
 # Исключаем ошибку в браузере
-@app.route('/favicon.ico')
+@bp.route('/favicon.ico')
 def favicon():
     return '', 204  # Пустой ответ, чтобы не было ошибки
-
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()  # Создание таблиц в базе данных
-    app.run(debug=True)
-
