@@ -16,6 +16,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+    balance = db.Column(db.Integer, default=1000)
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -34,7 +35,7 @@ def register():
     if existing_user:
         return jsonify({"msg": "User already exists"}), 400
 
-    new_user = User(username=username, password=password)
+    new_user = User(username=username, password=password, balance=1000)
     db.session.add(new_user)
     db.session.commit()
 
