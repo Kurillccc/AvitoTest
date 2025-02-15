@@ -15,6 +15,9 @@ def register():
     username = request.json.get('username', None)
     password = request.json.get('password', None)
 
+    if len(username) > 100:
+        return jsonify({"msg": "Username is too long"}), 400
+
     # Проверка на существование пользователя
     existing_user = User.query.filter_by(username=username).first()
     if existing_user:
