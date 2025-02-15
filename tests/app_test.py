@@ -24,10 +24,10 @@ def test_register(client):
     assert response.status_code == 201
     assert b'User created successfully' in response.data
 
-    # Проверка добавления в бд
-    user = User.query.filter_by(username='testuser').first()
-    assert user is not None
-    assert user.username == 'testuser'
+    with client.application.app_context():
+        user = User.query.filter_by(username='testuser').first()
+        assert user is not None
+        assert user.username == 'testuser'
 
 def test_register_duplicate(client):
     client.post('/register', json={
